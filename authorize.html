@@ -15,21 +15,21 @@ function signMsg(msgParams, from, callback) {
         params: [msgParams, from],
         from: from,
     }, function (err, result) {
-        if (err) return callback(err)
+        if (err) return callback(err);
         if (result.error) {
-            return callback(result.error)
+            return callback(result.error);
         }
         const recovered = sigUtil.recoverTypedSignature({
             data: msgParams,
             sig: result.result
-        })
+        });
         if (recovered === from ) {
             //alert('Recovered signer: ' + from)
-            callback(null, result.result)
+            callback(null, result.result);
         } else {
-            callback(new Error('Failed to verify signer, got: ' + result))
+            callback(new Error('Failed to verify signer, got: ' + result));
         }
-    })
+    });
 }
 
 function startApp(){
@@ -37,8 +37,8 @@ function startApp(){
     // check environment
     if (!global.web3) {
         // start mascara
-        const provider = metamask.createDefaultProvider({})
-        global.web3 = { currentProvider: provider }
+        const provider = metamask.createDefaultProvider({});
+        global.web3 = { currentProvider: provider };
     }
 
     // create query helper
@@ -46,18 +46,24 @@ function startApp(){
 
     var obj = parseQuery(window.location.search);
 
-    function error(err) {
-        window.location = (obj.redirect_uri || "") + "#error=" + err
+    function error(err, desc) {
+        window.location = (obj.redirect_uri || "")
+            + "#error=" + err
+            + (desc ? "&error_description=" + encodeURIComponent(desc) : "")
+            + (obj.state ? "&state" = encodeURIComponent(obj.state) : "");
     }
 
     if (window.location.protocol !== "https:" && window.location.host !== "localhost") {
         return error("unsupported_over_http");
     }
     if (obj.response_type !== "token") {
-        return error("unsupported_response_type");
+        return error("unsupported_response_type", "Supported response types: token");
     }
-    if (!obj.client_id || !obj.redirect_uri) {
-        return error("parameter_absent");
+    if (!obj.client_id) {
+        return error("parameter_absent", "Missing: client_id");
+    }
+    if (!obj.redirect_uri) {
+        return error("parameter_absent", "Missing: redirect_uri");
     }
     if (obj.client_id !== "self") {
         return error("unauthorized_client");
@@ -66,19 +72,25 @@ function startApp(){
         return error("invalid_callback");
     }
     if (obj.scope) {
-        return error("invalid_scope");
+        return error("invalid_scope", "Supported scopes: none");
     }
 
-
     function sign(e) {
-        signMsg({a:2}, 0, (err, sig) => {
+        global.web3.eth.getAccounts(function (err, accounts) {
+            if (!accounts) return error("unauthorized_client", "No active accounts found");
+            signMsg({a:2}, accounts[0], function(err, sig) {
 
-            window.location = obj.redirect_uri + "#" + makeQuery({
-                access_token: "Jwt.T0.k3n",
-                token_type: "bearer",
-                //expires_in: "recommended",
-                //scope: obj.scope,
-                state: obj.state,
+                if (err) {
+                    return error("access_denied", err.message || err);
+                }
+
+                window.location = obj.redirect_uri + "#" + makeQuery({
+                    access_token: "Jwt.T0.k3n",
+                    token_type: "bearer",
+                    //expires_in: "recommended",
+                    //scope: obj.scope,
+                    state: obj.state,
+                });
             });
         });
     }
