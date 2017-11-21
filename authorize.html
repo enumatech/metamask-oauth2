@@ -9,6 +9,19 @@
 
 const global = {};
 
+function getAccounts(callback) {
+    global.web3.currentProvider.sendAsync({
+        method: 'eth_getAccounts',
+        params: [],
+    }, function (err, result) {
+        if (err) return callback(err);
+        if (result.error) {
+            return callback(result.error);
+        }
+        return callback(null, result.result);
+    });
+}
+
 function signMsg(msgParams, from, callback) {
     global.web3.currentProvider.sendAsync({
         method: 'eth_signTypedData',
@@ -76,7 +89,7 @@ function startApp(){
     }
 
     function sign(e) {
-        global.web3.eth.getAccounts(function (err, accounts) {
+        getAccounts(function (err, accounts) {
             if (!accounts) return error("unauthorized_client", "No active accounts found");
             signMsg({a:2}, accounts[0], function(err, sig) {
 
