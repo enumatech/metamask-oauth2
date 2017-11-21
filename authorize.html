@@ -11,7 +11,7 @@ const global = {};
 
 function getAccounts(callback) {
     global.web3.currentProvider.sendAsync({
-        method: 'eth_getAccounts',
+        method: 'eth_accounts',
         params: [],
     }, function (err, result) {
         if (err) return callback(err);
