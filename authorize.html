@@ -3,24 +3,43 @@
 </head>
 <body>
     <button id="authorize" value="Login"/>
+    <script type="text/javascript" src="query.js"></script>
     <script type="text/javascript">
 (function(){
 
-    function parseQuery(p) {
-        var regex = /(?:[&?]([^=&#]+)(?:=([^&#]*))?)/g;
-        var m, query = {};
-        while (m = regex.exec(p)) {
-            query[decodeURIComponent(m[1])] = decodeURIComponent(m[2]||"");
-        }
-        return query;
+    var obj = parseQuery(window.location.search);
+
+    function error(err) {
+        window.location = (obj.redirect_uri || "") + "#error=" + err
     }
 
-    function authorize(e) {
-        // Redirect to /authorize endpoint
-        window.location.href = "/authorize?client_id=asf&scope=hello&callback=" + encodeURIComponent(window.location);
+    if (window.location.protocol !== "https") {
+        return error("unsupported_over_http");
+    }
+    if (obj.response_type !== "token") {
+        return error("unsupported_response_type");
+    }
+    if (!obj.client_id || !obj.redirect_uri) {
+        return error("parameter_absent");
+    }
+    if (obj.client_id !== "self") {
+        return error("unauthorized_client");
+    }
+    if (obj.redirect_uri.indexOf(window.location.host) < 0) {
+        return error("invalid_callback");
+    }
+    if (obj.scope) {
+        return error("invalid_scope");
     }
 
-    document.getElementById("authorize").addEventListener("click", authorize);
+    window.location = obj.redirect_uri + "#" + makeQuery({
+        access_token: "Jwt.T0.k3n",
+        token_type: "bearer",
+        //expires_in: "recommended",
+        //scope: obj.scope,
+        state: obj.state,
+    });
+
 })();
     </script>
 </body>

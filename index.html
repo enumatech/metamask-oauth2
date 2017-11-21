@@ -2,22 +2,24 @@
 <head>
 </head>
 <body>
-    <button id="authorize" value="Login"/>
+    <button id="authorize">Login</button>
+    <script type="text/javascript" src="query.js"></script>
     <script type="text/javascript">
 (function(){
 
-    function parseQuery(p) {
-        var regex = /(?:[&?]([^=&#]+)(?:=([^&#]*))?)/g;
-        var m, query = {};
-        while (m = regex.exec(p)) {
-            query[decodeURIComponent(m[1])] = decodeURIComponent(m[2]||"");
-        }
-        return query;
-    }
+    // TODO: did we get a token or error?
+    var obj = parseQuery(window.location.search);
 
     function authorize(e) {
         // Redirect to /authorize endpoint
-        window.location.href = "/authorize?client_id=asf&scope=hello&callback=" + encodeURIComponent(window.location);
+        window.location.href = "/metamask-oauth2/authorize?"
+            + makeQuery({
+                client_id: "self",
+                response_type: "token",
+                redirect_uri: window.location,
+                //state: "state",
+                //scope: "scope",
+            });
     }
 
     document.getElementById("authorize").addEventListener("click", authorize);
