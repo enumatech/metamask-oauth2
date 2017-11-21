@@ -50,7 +50,7 @@ function startApp(){
         window.location = (obj.redirect_uri || "")
             + "#error=" + err
             + (desc ? "&error_description=" + encodeURIComponent(desc) : "")
-            + (obj.state ? "&state" = encodeURIComponent(obj.state) : "");
+            + (obj.state ? "&state=" + encodeURIComponent(obj.state) : "");
     }
 
     if (window.location.protocol !== "https:" && window.location.host !== "localhost") {
