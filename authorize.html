@@ -1,0 +1,27 @@
+<html>
+<head>
+</head>
+<body>
+    <button id="authorize" value="Login"/>
+    <script type="text/javascript">
+(function(){
+
+    function parseQuery(p) {
+        var regex = /(?:[&?]([^=&#]+)(?:=([^&#]*))?)/g;
+        var m, query = {};
+        while (m = regex.exec(p)) {
+            query[decodeURIComponent(m[1])] = decodeURIComponent(m[2]||"");
+        }
+        return query;
+    }
+
+    function authorize(e) {
+        // Redirect to /authorize endpoint
+        window.location.href = "/authorize?client_id=asf&scope=hello&callback=" + encodeURIComponent(window.location);
+    }
+
+    document.getElementById("authorize").addEventListener("click", authorize);
+})();
+    </script>
+</body>
+</html>
