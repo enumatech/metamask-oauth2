@@ -14,7 +14,7 @@
         document.getElementById("target").innerText = str;
     }
 
-    var obj = parseQuery(window.location.search);
+    var obj = parseQuery(window.location.hash);
     if (obj.error) {
         render(obj.error_description || obj.error);
     }
