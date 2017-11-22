@@ -23,6 +23,7 @@
     }
 
     function authorize(e) {
+        window.location.hash = "";
         // Redirect to /authorize endpoint
         window.location.href = "/metamask-oauth2/authorize?"
             + makeQuery({
