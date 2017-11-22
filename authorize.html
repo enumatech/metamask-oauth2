@@ -107,7 +107,7 @@ function startApp(){
     }
 
     function toBase64url(bytes) {
-        return btoa(bytes).replace(/=/,'').replace(/\//,'_').replace(/\+/,'-');
+        return btoa(bytes).replace(/=*$/,'').replace(/\//g,'_').replace(/\+/g,'-');
     }
 
     function sign(e) {
