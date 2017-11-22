@@ -132,7 +132,7 @@ function startApp(){
 
                 const sig = toBase64url(fromHex(sighex.substr(2,128)));
 
-                window.location = obj.redirect_uri + "#" + makeQuery({
+                window.location = obj.redirect_uri.replace(/(#.*)?$/,'#') + makeQuery({
                     access_token: jwt + "." + sig,
                     token_type: "bearer",
                     expires_in: expires_in,
