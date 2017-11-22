@@ -12,10 +12,10 @@
 
 const global = {};
 
-function eth_accounts(callback) {
-    global.web3.currentProvider.sendAsync({
-        method: 'eth_accounts',
-        params: [],
+function rpc(str, callback, ...params) {
+    return global.web3.currentProvider.sendAsync({
+        method: str,
+        params: params,
     }, function (err, result) {
         if (err) return callback(err);
         if (result.error) {
@@ -23,43 +23,22 @@ function eth_accounts(callback) {
         }
         return callback(null, result.result);
     });
+}
+
+function eth_accounts(callback) {
+    return rpc("eth_accounts", callback);
 }
 
 function eth_sign(str, from, callback) {
-    global.web3.currentProvider.sendAsync({
-        method: 'eth_sign',
-        params: [str, from],
-    }, function (err, result) {
-        if (err) return callback(err);
-        if (result.error) {
-            return callback(result.error);
-        }
-        return callback(null, result.result);
-    });
+    return rpc('eth_sign', callback, from, str);
+}
+
+function personal_sign(str, from, callback) {
+    return rpc('personal_sign', callback, from, str);
 }
 
 function eth_signTypedData(msgParams, from, callback) {
-    global.web3.currentProvider.sendAsync({
-        method: 'eth_signTypedData',
-        params: [msgParams, from],
-        from: from,
-    }, function (err, result) {
-        if (err) return callback(err);
-        if (result.error) {
-            return callback(result.error);
-        }
-        return callback(null, result.result);
-        /*const recovered = sigUtil.recoverTypedSignature({
-            data: msgParams,
-            sig: result.result
-        });
-        if (recovered === from ) {
-            //alert('Recovered signer: ' + from)
-            callback(null, result.result);
-        } else {
-            callback(new Error('Failed to verify signer, got: ' + result));
-        }*/
-    });
+    return rpc('eth_signTypedData', callback, msgParams, from);
 }
 
 function render(str) {
@@ -75,7 +54,7 @@ function startApp(){
         global.web3 = { currentProvider: provider };
     }
 
-    var obj = parseQuery(window.location.search);
+    var obj = parseQuery(window.location.search + window.location.hash);
 
     // Detect our own errors
     if (obj.error) {
@@ -93,6 +72,9 @@ function startApp(){
     if (window.location.protocol !== "https:" && window.location.host !== "localhost") {
         return error("unsupported_over_http");
     }
+    if (!obj.redirect_uri) {
+        return error("parameter_absent", "Missing: redirect_uri");
+    }
     if (!obj.response_type) {
         return error("parameter_absent", "Missing: response_type");
     }
@@ -101,9 +83,6 @@ function startApp(){
     }
     if (!obj.client_id) {
         return error("parameter_absent", "Missing: client_id");
-    }
-    if (!obj.redirect_uri) {
-        return error("parameter_absent", "Missing: redirect_uri");
     }
     if (obj.scope) {
         return error("invalid_scope", "Unsupported scopes: " + obj.scope);
@@ -137,7 +116,7 @@ function startApp(){
 
             const jose = {alg: "ES256K", typ: "JWT"};
             const claims = {iss: iss, sub: accounts[0], iat: now, nbf: now, aud: obj.client_id, exp: now+expires_in, nonce: obj.nonce };
-            const jwt = JSON.stringify(jose) + "." + JSON.stringify(claims);
+            const jwt = JSON.stringify(jose) + "." + JSON.stringify(claims,null,2);
 
             eth_sign(jwt, accounts[0], function(err, sighex) {
 
