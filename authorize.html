@@ -62,7 +62,7 @@ function startApp(){
     }
 
     function error(err, desc) {
-        window.location = (obj.redirect_uri || "") + "#" + makeQuery({
+        window.location = (obj.redirect_uri || "").replace(/(#.*)?$/,'#') + makeQuery({
             error: err,
             error_description: desc,
             state: obj.state
