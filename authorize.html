@@ -118,7 +118,7 @@ function startApp(){
             const claims = {iss: iss, sub: accounts[0], iat: now, nbf: now, aud: obj.client_id, exp: now+expires_in, nonce: obj.nonce };
             const jwt = JSON.stringify(jose) + "." + JSON.stringify(claims,null,2);
 
-            eth_sign(jwt, accounts[0], function(err, sighex) {
+            personal_sign(jwt, accounts[0], function(err, sighex) {
 
                 if (err) {
                     return error("access_denied", err.message || err);
