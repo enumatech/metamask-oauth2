@@ -100,6 +100,12 @@ function startApp(){
         return hex.match(/\w{2}/g).map(function(a){return String.fromCharCode(parseInt(a, 16));} ).join("");
     }
 
+    function toHex(str) {
+        var x = "";
+        for(var i=0;i<str.length;i++) x += ("0"+str.charCodeAt(i).toString(16)).slice(-2);
+        return x;
+    }
+
     function toBase64url(bytes) {
         return btoa(bytes).replace(/=/,'').replace(/\//,'_').replace(/\+/,'-');
     }
@@ -116,9 +122,9 @@ function startApp(){
 
             const jose = {alg: "ES256K", typ: "JWT"};
             const claims = {iss: iss, sub: accounts[0], iat: now, nbf: now, aud: obj.client_id, exp: now+expires_in, nonce: obj.nonce };
-            const jwt = JSON.stringify(jose) + "." + JSON.stringify(claims,null,2);
+            const jwt = toBase64url(JSON.stringify(jose)) + "." + toBase64url(JSON.stringify(claims));
 
-            personal_sign(jwt, accounts[0], function(err, sighex) {
+            personal_sign("0x"+toHex(jwt), accounts[0], function(err, sighex) {
 
                 if (err) {
                     return error("access_denied", err.message || err);
