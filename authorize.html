@@ -1,15 +1,18 @@
 <html>
 <head>
+    <title>Metamask OAuth2 provider</title>
     <script src="https://wallet.metamask.io/metamascara.js"></script>
 </head>
 <body>
-    <button id="sign">Sign</button>
+    <h1>Metamask OAuth2 provider</h1>
+    <div id="target"></div>
+    <button id="sign">Sign with metamask</button>
     <script type="text/javascript" src="query.js"></script>
     <script type="text/javascript">
 
 const global = {};
 
-function getAccounts(callback) {
+function eth_accounts(callback) {
     global.web3.currentProvider.sendAsync({
         method: 'eth_accounts',
         params: [],
@@ -22,7 +25,20 @@ function getAccounts(callback) {
     });
 }
 
-function signMsg(msgParams, from, callback) {
+function eth_sign(str, from, callback) {
+    global.web3.currentProvider.sendAsync({
+        method: 'eth_sign',
+        params: [str, from],
+    }, function (err, result) {
+        if (err) return callback(err);
+        if (result.error) {
+            return callback(result.error);
+        }
+        return callback(null, result.result);
+    });
+}
+
+function eth_signTypedData(msgParams, from, callback) {
     global.web3.currentProvider.sendAsync({
         method: 'eth_signTypedData',
         params: [msgParams, from],
@@ -32,7 +48,8 @@ function signMsg(msgParams, from, callback) {
         if (result.error) {
             return callback(result.error);
         }
-        const recovered = sigUtil.recoverTypedSignature({
+        return callback(null, result.result);
+        /*const recovered = sigUtil.recoverTypedSignature({
             data: msgParams,
             sig: result.result
         });
@@ -41,8 +58,12 @@ function signMsg(msgParams, from, callback) {
             callback(null, result.result);
         } else {
             callback(new Error('Failed to verify signer, got: ' + result));
-        }
+        }*/
     });
+}
+
+function render(str) {
+    document.getElementById("target").innerText = str;
 }
 
 function startApp(){
@@ -54,23 +75,29 @@ function startApp(){
         global.web3 = { currentProvider: provider };
     }
 
-    // create query helper
-    //global.ethQuery = new EthQuery(global.web3.currentProvider)
-
     var obj = parseQuery(window.location.search);
 
+    // Detect our own errors
+    if (obj.error) {
+        render(obj.error_description || obj.error);
+    }
+
     function error(err, desc) {
-        window.location = (obj.redirect_uri || "")
-            + "#error=" + err
-            + (desc ? "&error_description=" + encodeURIComponent(desc) : "")
-            + (obj.state ? "&state=" + encodeURIComponent(obj.state) : "");
+        window.location = (obj.redirect_uri || "") + "#" + makeQuery({
+            error: err,
+            error_description: desc,
+            state: obj.state
+        });
     }
 
     if (window.location.protocol !== "https:" && window.location.host !== "localhost") {
         return error("unsupported_over_http");
     }
+    if (!obj.response_type) {
+        return error("parameter_absent", "Missing: response_type");
+    }
     if (obj.response_type !== "token") {
-        return error("unsupported_response_type", "Supported response types: token");
+        return error("unsupported_response_type", "Unsupported response types: " + obj.response_type);
     }
     if (!obj.client_id) {
         return error("parameter_absent", "Missing: client_id");
@@ -78,29 +105,52 @@ function startApp(){
     if (!obj.redirect_uri) {
         return error("parameter_absent", "Missing: redirect_uri");
     }
+    if (obj.scope) {
+        return error("invalid_scope", "Unsupported scopes: " + obj.scope);
+    }
     if (obj.client_id !== "self") {
         return error("unauthorized_client");
     }
     if (obj.redirect_uri.indexOf(window.location.host) < 0) {
         return error("invalid_callback");
     }
-    if (obj.scope) {
-        return error("invalid_scope", "Supported scopes: none");
+
+    render(window.location.host + " requests authorization.");
+
+    function fromHex(hex) {
+        return hex.match(/\w{2}/g).map(function(a){return String.fromCharCode(parseInt(a, 16));} ).join("");
+    }
+
+    function toBase64url(bytes) {
+        return btoa(bytes).replace(/=/,'').replace(/\//,'_').replace(/\+/,'-');
     }
 
     function sign(e) {
-        getAccounts(function (err, accounts) {
-            if (!accounts) return error("unauthorized_client", "No active accounts found");
-            signMsg({a:2}, accounts[0], function(err, sig) {
+        eth_accounts(function (err, accounts) {
+            if (!accounts) {
+                return error("unauthorized_client", "No accounts found");
+            }
+
+            const iss = "https://" + window.location.host + window.location.pathname;
+            const now = Math.floor(new Date().getTime()/1000);
+            const expires_in = 60;
+
+            const jose = {alg: "ES256K", typ: "JWT"};
+            const claims = {iss: iss, sub: accounts[0], iat: now, nbf: now, aud: obj.client_id, exp: now+expires_in, nonce: obj.nonce };
+            const jwt = JSON.stringify(jose) + "." + JSON.stringify(claims);
+
+            eth_sign(jwt, accounts[0], function(err, sighex) {
 
                 if (err) {
                     return error("access_denied", err.message || err);
                 }
 
+                const sig = toBase64url(fromHex(sighex.substr(2,128)));
+
                 window.location = obj.redirect_uri + "#" + makeQuery({
-                    access_token: "Jwt.T0.k3n",
+                    access_token: jwt + "." + sig,
                     token_type: "bearer",
-                    //expires_in: "recommended",
+                    expires_in: expires_in,
                     //scope: obj.scope,
                     state: obj.state,
                 });

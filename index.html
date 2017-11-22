@@ -1,14 +1,26 @@
 <html>
 <head>
+    <title>OAuth2 client</title>
 </head>
 <body>
+    <h1>OAuth2 client</h1>
     <button id="authorize">Login</button>
+    <div id="target"></div>
     <script type="text/javascript" src="query.js"></script>
     <script type="text/javascript">
 (function(){
 
-    // TODO: did we get a token or error?
+    function render(str) {
+        document.getElementById("target").innerText = str;
+    }
+
     var obj = parseQuery(window.location.search);
+    if (obj.error) {
+        render(obj.error_description || obj.error);
+    }
+    else if (obj.access_token && obj.token_type === "bearer" && obj.state === "login") {
+        render("You've been authenticated!");
+    }
 
     function authorize(e) {
         // Redirect to /authorize endpoint
@@ -17,7 +29,7 @@
                 client_id: "self",
                 response_type: "token",
                 redirect_uri: window.location,
-                //state: "state",
+                state: "login",
                 //scope: "scope",
             });
     }
