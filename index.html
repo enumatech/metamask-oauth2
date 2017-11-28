@@ -1,10 +1,14 @@
 <html>
 <head>
     <title>OAuth2 client</title>
+    <meta charset="UTF-8"/>
+    <meta name="copyright" content="Enuma Technologies Limited"/>
+    <meta name="author" content="Lionello Lunesu"/>
 </head>
 <body>
     <h1>OAuth2 client</h1>
     <button id="authorize">Login</button>
+    <button id="logout">Logout</button>
     <div id="target"></div>
     <script type="text/javascript" src="query.js"></script>
     <script type="text/javascript">
@@ -14,28 +18,45 @@
         document.getElementById("target").innerText = str;
     }
 
-    var obj = parseQuery(window.location.hash);
-    if (obj.error) {
-        render(obj.error_description || obj.error);
-    }
-    else if (obj.access_token && obj.token_type === "bearer" && obj.state === "login") {
-        render("You've been authenticated!");
+    function setCookie(token) {
+        document.cookie = "token=" + (token ? token : ";expires=Thu, 01 Jan 1970 00:00:01 GMT") + "; path=/";
     }
 
+    function logout(e) {
+        setCookie();
+        render("You've been logged out!");
+    }
+
+    var response = parseQuery(window.location.hash);
+    if (response.error) {
+        render(response.error_description || response.error);
+        setCookie();
+    }
+    else if (response.access_token && response.token_type === "bearer" && response.state === "login") {
+        render("You've been authenticated!");
+        setCookie(response.access_token);
+    }
+    else if (document.cookie && /\btoken=e/.test(document.cookie)) {
+        render("You're still authenticated!");
+    }
+
+    window.location.hash = "";
+
     function authorize(e) {
-        window.location.hash = "";
         // Redirect to /authorize endpoint
-        window.location.href = "/metamask-oauth2/authorize?"
+        window.location.href = "authorize.html?"
             + makeQuery({
                 client_id: "self",
                 response_type: "token",
                 redirect_uri: window.location,
                 state: "login",
                 //scope: "scope",
+                //response_mode: "query"
             });
     }
 
     document.getElementById("authorize").addEventListener("click", authorize);
+    document.getElementById("logout").addEventListener("click", logout);
 })();
     </script>
 </body>
