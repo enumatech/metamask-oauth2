@@ -144,8 +144,12 @@ function startApp(){
 
     function sign(e) {
         eth_accounts(function (err, accounts) {
-            if (!accounts) {
-                return error("unauthorized_client", "No accounts found");
+            if (err) {
+                return render(err.message || err);
+            }
+
+            if (!accounts || accounts.length === 0) {
+                return render("No accounts found; please login to Metamask first");
             }
 
             var iss = "https://" + window.location.host + window.location.pathname;
