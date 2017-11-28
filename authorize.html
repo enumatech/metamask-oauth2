@@ -1,6 +1,9 @@
 <html>
 <head>
     <title>Metamask OAuth2 provider</title>
+    <meta charset="UTF-8"/>
+    <meta name="copyright" content="Enuma Technologies Limited"/>
+    <meta name="author" content="Lionello Lunesu"/>
     <script src="https://wallet.metamask.io/metamascara.js"></script>
 </head>
 <body>
@@ -9,88 +12,117 @@
     <button id="sign">Sign with metamask</button>
     <script type="text/javascript" src="query.js"></script>
     <script type="text/javascript">
-
-const global = {};
-
-function rpc(str, callback, ...params) {
-    return global.web3.currentProvider.sendAsync({
-        method: str,
-        params: params,
-    }, function (err, result) {
-        if (err) return callback(err);
-        if (result.error) {
-            return callback(result.error);
-        }
-        return callback(null, result.result);
-    });
-}
-
-function eth_accounts(callback) {
-    return rpc("eth_accounts", callback);
-}
-
-function eth_sign(str, from, callback) {
-    return rpc('eth_sign', callback, from, str);
-}
-
-function personal_sign(str, from, callback) {
-    return rpc('personal_sign', callback, from, str);
-}
-
-function eth_signTypedData(msgParams, from, callback) {
-    return rpc('eth_signTypedData', callback, msgParams, from);
-}
-
-function render(str) {
-    document.getElementById("target").innerText = str;
-}
+var global = {};
 
 function startApp(){
+
+    function rpc(str, callback, ...params) {
+        return global.web3.currentProvider.sendAsync({
+            method: str,
+            params: params,
+        }, function (err, result) {
+            if (err) return callback(err);
+            if (result.error) {
+                return callback(result.error);
+            }
+            return callback(null, result.result);
+        });
+    }
+
+    function eth_accounts(callback) {
+        return rpc("eth_accounts", callback);
+    }
+
+    function eth_sign(str, from, callback) {
+        return rpc('eth_sign', callback, from, str);
+    }
+
+    function personal_sign(str, from, callback) {
+        return rpc('personal_sign', callback, from, str);
+    }
+
+    function eth_signTypedData(msgParams, from, callback) {
+        return rpc('eth_signTypedData', callback, msgParams, from);
+    }
+
+    function render(str) {
+        document.getElementById("target").innerText = str;
+    }
 
     // check environment
     if (!global.web3) {
         // start mascara
-        const provider = metamask.createDefaultProvider({});
+        var provider = metamask.createDefaultProvider({});
         global.web3 = { currentProvider: provider };
     }
 
-    var obj = parseQuery(window.location.search + window.location.hash);
+    var query = parseQuery(window.location.search + window.location.hash);
 
     // Detect our own errors
-    if (obj.error) {
-        render(obj.error_description || obj.error);
+    if (query.error) {
+        return render(query.error_description || query.error);
+    }
+
+    function redirect(reply) {
+        if (query.response_mode === "query") {
+            var hasQuery = query.redirect_uri.indexOf('?') >= 0;
+            window.location = query.redirect_uri.replace(/(#.*)?$/,hasQuery ? '&' : '?') + makeQuery(reply);
+        }
+        else if (query.response_mode === "form_post") {
+            var form = document.createElement("form");
+            form.setAttribute("style", "display:none");
+            form.setAttribute("method", "post");
+            form.setAttribute("action", query.redirect_uri);
+            for (var key in reply) {
+                if (reply[key] !== undefined) {
+                    var input = document.createElement("input");
+                    input.setAttribute("name", key);
+                    input.setAttribute("value", reply[key]);
+                    form.appendChild(input);
+                }
+            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+        else {
+            window.location = query.redirect_uri.replace(/(#.*)?$/,'#') + makeQuery(reply);
+        }
     }
 
     function error(err, desc) {
-        window.location = (obj.redirect_uri || "").replace(/(#.*)?$/,'#') + makeQuery({
+        render(desc || err);
+        redirect({
             error: err,
             error_description: desc,
-            state: obj.state
+            state: query.state
         });
     }
 
-    if (window.location.protocol !== "https:" && window.location.host !== "localhost") {
+    if (window.location.protocol === "http:" && window.location.hostname !== "localhost") {
         return error("unsupported_over_http");
     }
-    if (!obj.redirect_uri) {
+    if (query.redirect_uri === undefined) {
         return error("parameter_absent", "Missing: redirect_uri");
     }
-    if (!obj.response_type) {
+    if (query.response_type === undefined) {
         return error("parameter_absent", "Missing: response_type");
     }
-    if (obj.response_type !== "token") {
-        return error("unsupported_response_type", "Unsupported response types: " + obj.response_type);
+    if (!(query.response_mode in {form_post:1, query:1, fragment:1, undefined:1})) {
+        return error("parameter_absent", "Unsupported response_mode: " + query.response_mode);
     }
-    if (!obj.client_id) {
+    if (query.response_type !== "token") {
+        return error("unsupported_response_type", "Unsupported response_type: " + query.response_type);
+    }
+    if (query.client_id === undefined) {
         return error("parameter_absent", "Missing: client_id");
     }
-    if (obj.scope) {
-        return error("invalid_scope", "Unsupported scopes: " + obj.scope);
+    if (query.scope !== undefined) {
+        return error("invalid_scope", "Unsupported scopes: " + query.scope);
     }
-    if (obj.client_id !== "self") {
+    if (query.client_id !== "self") {
         return error("unauthorized_client");
     }
-    if (obj.redirect_uri.indexOf(window.location.host) < 0) {
+    if (query.redirect_uri.indexOf(window.location.host) < 0) {
         return error("invalid_callback");
     }
 
@@ -116,13 +148,13 @@ function startApp(){
                 return error("unauthorized_client", "No accounts found");
             }
 
-            const iss = "https://" + window.location.host + window.location.pathname;
-            const now = Math.floor(new Date().getTime()/1000);
-            const expires_in = 60;
+            var iss = "https://" + window.location.host + window.location.pathname;
+            var now = Math.floor(new Date().getTime()/1000);
+            var expires_in = 600;
 
-            const jose = {alg: "ES256K", typ: "JWT"};
-            const claims = {iss: iss, sub: accounts[0], iat: now, nbf: now, aud: obj.client_id, exp: now+expires_in, nonce: obj.nonce };
-            const jwt = toBase64url(JSON.stringify(jose)) + "." + toBase64url(JSON.stringify(claims));
+            var jose = {alg: "ES256K", typ: "JWT"};
+            var claims = {iss: iss, sub: accounts[0], iat: now, nbf: now, aud: query.client_id, exp: now+expires_in, nonce: query.nonce };
+            var jwt = toBase64url(JSON.stringify(jose)) + "." + toBase64url(JSON.stringify(claims));
 
             personal_sign("0x"+toHex(jwt), accounts[0], function(err, sighex) {
 
@@ -130,14 +162,13 @@ function startApp(){
                     return error("access_denied", err.message || err);
                 }
 
-                const sig = toBase64url(fromHex(sighex.substr(2,128)));
-
-                window.location = obj.redirect_uri.replace(/(#.*)?$/,'#') + makeQuery({
+                var sig = toBase64url(fromHex(sighex.substr(2,128)));
+                redirect({
                     access_token: jwt + "." + sig,
                     token_type: "bearer",
                     expires_in: expires_in,
-                    //scope: obj.scope,
-                    state: obj.state,
+                    //scope: query.scope,
+                    state: query.state,
                 });
             });
         });
