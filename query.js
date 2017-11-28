@@ -1,5 +1,8 @@
+// Copyright Enuma Technologies Limited
+// Author: Lionello Lunesu
+
 function parseQuery(p) {
-    var regex = /(?:[#&?]([^=&#]+)(?:=([^&#]*))?)/g;
+    var regex = /[#&?]([^=&#]+)(?:=([^&#]*))?/g;
     var m, query = {};
     while (m = regex.exec(p)) {
         query[decodeURIComponent(m[1])] = decodeURIComponent(m[2]||"");
