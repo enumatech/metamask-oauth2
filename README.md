@@ -7,6 +7,6 @@ The particular OAuth2 Provider implemented here uses Metamask (and MetaMascara) 
 Authentication happens by the user signing a JWT. This JWT is returned to the OAuth2 client as a bearer token. 
 The client page can verify the signature (using web3/Metamask) or send it to a backend for server-side verification in REST APIs.
 
-Because the JWT is signed using the `personal_sign` RPC call, which doesn't allow signing of abritrary hashes, verification should be done using `personal_ecRecover`.
+Because the JWT is signed using the `personal_sign` RPC call, which doesn't allow signing of arbitrary hashes, verification should be done using `personal_ecRecover`.
 
 The files in the repo are hosted on GitHub Pages at https://blog.enuma.io/metamask-oauth2/ . Note that because GitHub Pages does not support HTTPS for custom domains there will be an SSL warning when accessing the demo.
